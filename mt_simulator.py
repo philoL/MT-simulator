@@ -20,6 +20,7 @@ class Measurement():
 
 	def __init__(self):
 		self.rank_counters = collections.defaultdict(lambda : [ 0, 0])
+		self._rank = None
 
 	def __str__(self):
 		return self.rank_counters.__str__()
@@ -50,6 +51,7 @@ class NameTree():
 			cur = queue.pop(0)
 			# print(cur)
 			if cur._fib != None:
+				print(cur)
 				count += 1
 			for child in cur._children:
 				queue.append(child)
@@ -195,35 +197,63 @@ class NameTree():
 			assuming two ranks
 			this node should contain fib
 		"""
-		if node._fib == None:
+
+		if node == self._root or node == None:
 			return
 
+		# check collapse conditions
 		child_counter = {"r1":0,"r2":0}
+		fib = None
+
+		if node._fib == None:
+			# find fib for this node
+			current = node._parent
+			while current:
+				if current._fib != None:
+					fib = current._fib
+					break
+
+			if not fib:	# at FIB case, no need to collapse upper
+				return
+
+		# case with no FIB at this node
+		else:
+			fib = node._fib
+
+		# count children with different rankings
 		for child in node._children:
 			if child._fib != None:
 				child_counter[child._fib] += 1
 			else:
-				child_counter[node._fib] += 1
+				child_counter[fib] += 1
 
-		if child_counter['r1'] != child_counter['r2'] and \
-			node._fib != max(child_counter['r1'], child_counter['r2']):
-			print("start collapsing, because of", child_counter)
-			for child in node._children:
-				if child._fib == None: # add fib
-					child._fib = node._fib
-					print("adding fib to node", child)
+		# if collapse is needed
+		if child_counter['r1'] != child_counter['r2']:
+			collapsed_fib = "r1" if child_counter['r1'] > child_counter['r2'] else "r2"
+
+			if fib == collapsed_fib:
+				print("--- deleting all child fib, because of", child_counter , " and node fib", fib)
+				for child in node._children:
+					if child._fib == collapsed_fib:
+						child._fib = None
+						print("deleting fib to child node", child)
+			else:
+				print("*** start collapsing, because of", child_counter, " and node fib", fib)
+				for child in node._children:
+					if child._fib == fib or child._fib == None: # expanding
+						child._fib = fib
+						print("adding fib to child node", child)
+					else: # collapsing
+						child._fib = None
+						print("deleting fib to child node", child)
+				if fib == "r1":
+					node._fib = "r2"
 				else:
-					child._fib = None
-					print("deleting fib to node", child)
+					node._fib = "r1"
+				print("adding fib to this node", node)
 
-			current = node._parent
-			while current:
-				if current._fib == node._fib:
-					node._fib = None
-					print("deleting fib at the collapsing node")
-				current = current._parent
-
-
+			# ranking reverting at this point check parents
+			self.mt_collapse_fib(node._parent)
 
 if __name__ == "__main__":
 	#test basics
@@ -264,20 +294,18 @@ if __name__ == "__main__":
 	# print(nt)
 	# print("FIB count: ", nt.count_fib())
 
-	#test mt_update_accurate
+	# mt_update_accurate test case 1
+	# nt.mt_update_accurate("/a/b/c1/d1/1", "r2")
+	# nt.mt_update_accurate("/a/b/c2/d1/1", "r1")
+	# nt.mt_update_accurate("/a/b/c3/d1/1", "r1")
+	# print("FIB count: ", nt.count_fib()) # should be 2
+
+	# mt_update_accurate test case 2
 	nt.mt_update_accurate("/a/b/c1/d1/1", "r2")
-	# print(nt)
-	# print("FIB node:", nt.find_fib("/a/b/c1/d2/1"))
-	# print("FIB count: ", nt.count_fib())
-
+	nt.mt_update_accurate("/a/b2/c1/d1/1", "r1")
+	nt.mt_update_accurate("/a/b3/c1/d1/1", "r1")
 	nt.mt_update_accurate("/a/b/c2/d1/1", "r1")
-	# print(nt)
-	# print("FIB node:", nt.find_fib("/a/b/c2/d1/1"))
-	# print("FIB count: ", nt.count_fib())
-
-	# nt.mt_update_accurate("/a/b2/c1/d1/1", "r1")
-	# print(nt)
-	# print("FIB node:", nt.find_fib("/a/b2/c1/d1/1"))
-	# print("FIB count: ", nt.count_fib())
-
 	nt.mt_update_accurate("/a/b/c3/d1/1", "r1")
+	print("FIB count: ", nt.count_fib()) # should be 2
+
+
